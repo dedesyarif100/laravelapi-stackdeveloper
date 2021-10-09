@@ -25,7 +25,11 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::namespace('App\Http\Controllers')->group(function() {
     Route::get('users', [APIController::class, 'getUser']);
     Route::get('users/{id?}', [APIController::class, 'getUserId']);
+    Route::get('users-list', [APIController::class, 'getUsersList']);
     Route::post('add-users', [APIController::class, 'addUsers']);
+    Route::post('register-user', [APIController::class, 'registerUser']);
+    Route::post('login-user', [APIController::class, 'loginUser']);
+    Route::post('logout-user', [APIController::class, 'logoutUser']);
     Route::post('add-multiple-users', [APIController::class, 'addMultipleUsers']);
     Route::put('update-user-details/{id}', [APIController::class, 'updateUserDetails']);
     Route::patch('update-user-name/{id}', [APIController::class, 'updateUsername']);
@@ -33,6 +37,9 @@ Route::namespace('App\Http\Controllers')->group(function() {
     Route::delete('delete-user-withjson', [APIController::class, 'deleteUserWithJson']);
     Route::delete('delete-multiple-users/{ids}', [APIController::class, 'deleteMultipleUsers']);
     Route::delete('delete-multiple-users-withjson', [APIController::class, 'deleteMultipleUsersWithJson']);
+
+    // this course is pending, because i am having trouble in token & url in description
+    Route::post('update-stock', [APIController::class, 'updateStock']);
 });
 
 Route::namespace('App\Http\Controllers')->group(function() {

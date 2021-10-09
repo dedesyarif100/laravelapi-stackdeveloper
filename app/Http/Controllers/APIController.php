@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 
@@ -22,6 +23,23 @@ class APIController extends Controller
         } else {
             $users = User::find($id);
             return response()->json(["users" => $users], 200);
+        }
+    }
+
+    public function getUsersList(Request $request)
+    {
+        $header = $request->header('Authorization');
+        if (empty($header)) {
+            $message = "Header Authorization is missing!";
+            return response()->json(['status' => false, 'message' => $message], 422);
+        } else {
+            if ($header == "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkRlZGUgU3lhcmlmdWRpbiIsImlhdCI6MTUxNjIzOTAyMn0.TELqbf2KLv5nsUYO2w0tjALCJPkWZHzTx2yuoCP8Iig") {
+                $users = User::get();
+                return response()->json(['users' => $users], 200);
+            } else {
+                $message = "Header Authorization is incorrect!";
+                return response()->json(['status' => false, 'message' => $message], 422);
+            }
         }
     }
 
@@ -96,6 +114,116 @@ class APIController extends Controller
             $user->password = bcrypt($userData['password']);
             $user->save();
             return response()->json(['message' => 'User added successfully!'], 201);
+        }
+    }
+
+    public function registerUser(Request $request)
+    {
+        if ($request->isMethod('post')) {
+            $userData = $request->input();
+            // echo "<pre>"; print_r($userData); die;
+
+            // Advance Post API Validations
+            $rules = [
+                "name" => "required|regex:/^[\pL\s\-]+$/u",
+                "email" => "required|email|unique:users",
+                "password" => "required"
+            ];
+
+            $customMessage = [
+                'name.required' => 'Name is required',
+                'email.required' => 'Email is required',
+                'email.email' => 'Valid Email is required',
+                'email.unique' => 'Email already exists in database',
+                'password.required' => 'Password is required'
+            ];
+
+            $validator = Validator::make($userData, $rules, $customMessage);
+
+            if ($validator->fails()) {
+                return response()->json($validator->errors(), 422);
+            }
+
+            // Generate Unique API / Access Token
+            $apiToken = Str::random(60);
+
+            $user = new User;
+            $user->name = $userData['name'];
+            $user->email = $userData['email'];
+            $user->password = bcrypt($userData['password']);
+            $user->api_token = $apiToken;
+            $user->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'User registered successfully!',
+                'token' => $apiToken
+            ], 201);
+        }
+    }
+
+    public function loginUser(Request $request)
+    {
+        if ($request->isMethod('post')) {
+            $userData = $request->input();
+            // echo "<pre>"; print_r($userData); die;
+
+            // Advance Post API Validations
+            $rules = [
+                "email" => "required|email|exists:users",
+                "password" => "required"
+            ];
+
+            $customMessage = [
+                'email.required' => 'Email is required',
+                'email.email' => 'Valid Email is required',
+                'email.unique' => 'Email does not exists in database',
+                'password.required' => 'Password is required'
+            ];
+
+            $validator = Validator::make($userData, $rules, $customMessage);
+
+            if ($validator->fails()) {
+                return response()->json($validator->errors(), 422);
+            }
+
+            // Fetch User Details
+            $userDetails = User::where('email', $userData['email'])->first();
+
+            // Verify the password
+            if (password_verify($userData['password'], $userDetails->password)) {
+                // Update Token
+                $apiToken = Str::random(60);
+
+                // Update Token
+                User::where('email', $userData['email'])->update(['api_token' => $apiToken]);
+                return response()->json([
+                    'status' => true,
+                    'message' => 'User logged in successfully!',
+                    'token' => $apiToken
+                ], 201);
+            } else {
+                return response()->json(['status' => false, 'message' => 'Password in incorrect']);
+            }
+
+        }
+    }
+
+    public function logoutUser(Request $request)
+    {
+        $api_token = $request->header('Authorization');
+        if (empty($api_token)) {
+            $message = "User Token is missing in API Header";
+            return response()->json(['status' => false, 'message' => $message], 422);
+        } else {
+            $api_token = str_replace("Bearer ", "", $api_token);
+            $userCount = User::where('api_token', $api_token)->count();
+            if ($userCount > 0) {
+                // Update User Token to Null
+                User::where('api_token', $api_token)->update(['api_token' => NULL]);
+                $message = "User Logged out successfully!";
+                return response()->json(['status' => true, 'message' => $message], 200);
+            }
         }
     }
 
@@ -228,6 +356,34 @@ class APIController extends Controller
             // }
             User::whereIn('id', $userData['ids'])->delete();
             return response()->json(['message' => 'User deleted successfully'], 202);
+        }
+    }
+
+    // this course is pending, because i am having trouble in token & url in description
+    public function updateStock(Request $request)
+    {
+        $header = $request->header('Authorization');
+        if (empty($header)) {
+            $message = "Header Authorization Token is missing in API Header!";
+            return response()->json(['status' =>false, 'message' =>$message], 422);
+        } else {
+            if ($header == "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkFtaXQgR3VwdGEiLCJpYXQiOjE1MTYyMzkwMjJ9.cNrgi6Sso9wvs4GlJmFnA4IqJY4o2QEcKXgshJTjfNg") {
+                // Update Stock API
+                // if ($request->isMethod('post')) {
+                //     $url = "http://127.0.0.1:8000/api/update-stock";
+                //     $curl = curl_init();
+                //     curl_setopt($curl, CURLOPT_URL, $url);
+                //     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                //     curl_setopt($curl, CURLOPT_HEADER, false);
+                //     $data = curl_exec($curl);
+                //     curl_close($curl);
+                //     $data = json_decode($data, true);
+                //     echo "<pre>"; print_r($data); die;
+                // }
+            } else {
+                $message = "Header Authorization is incorrect";
+                return response()->json(['status' => false, 'message' => $message], 422);
+            }
         }
     }
 }
